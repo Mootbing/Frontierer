@@ -122,77 +122,130 @@ function buildFrontierUrl(from: string, to: string, date: string): string {
 function CityInput({
   id,
   label,
-  value,
+  values,
   onChange,
   userCoords,
-  sortByDistance,
 }: {
   id: string;
   label: string;
-  value: string;
-  onChange: (v: string) => void;
+  values: string[];
+  onChange: (v: string[]) => void;
   userCoords: [number, number] | null;
-  sortByDistance: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
+  const [query, setQuery] = useState('');
+
+  const suggested = useMemo(() => {
+    if (!userCoords) return [];
+    return allCitiesAlpha
+      .filter((c) => !values.includes(c) && cityCoords[c])
+      .map((c) => ({
+        city: c,
+        iata: cityToIata[c],
+        distMi: Math.round(haversineKm(userCoords[0], userCoords[1], cityCoords[c][0], cityCoords[c][1]) * 0.621371),
+      }))
+      .sort((a, b) => a.distMi - b.distMi)
+      .slice(0, 3);
+  }, [userCoords, values]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-
-    let list = allCitiesAlpha.map((city) => {
-      const iata = cityToIata[city];
-      let distMi: number | null = null;
-      if (userCoords && cityCoords[city]) {
-        const km = haversineKm(userCoords[0], userCoords[1], cityCoords[city][0], cityCoords[city][1]);
-        distMi = Math.round(km * 0.621371);
-      }
-      return { city, iata, distMi };
-    });
-
-    if (q) {
-      list = list.filter(
+    return allCitiesAlpha
+      .filter((c) => !values.includes(c))
+      .map((c) => ({
+        city: c,
+        iata: cityToIata[c],
+        distMi:
+          userCoords && cityCoords[c]
+            ? Math.round(haversineKm(userCoords[0], userCoords[1], cityCoords[c][0], cityCoords[c][1]) * 0.621371)
+            : null,
+      }))
+      .filter(
         (o) =>
+          !q ||
           o.city.toLowerCase().includes(q) ||
           (o.iata && o.iata.toLowerCase().startsWith(q))
       );
-    }
-
-    if (sortByDistance && userCoords) {
-      list = [...list].sort((a, b) => (a.distMi ?? Infinity) - (b.distMi ?? Infinity));
-    }
-
-    return list;
-  }, [query, userCoords, sortByDistance]);
+  }, [query, userCoords, values]);
 
   function select(city: string) {
-    setQuery(city);
-    onChange(city);
-    setOpen(false);
+    onChange([...values, city]);
+    setQuery('');
   }
+
+  function remove(city: string) {
+    onChange(values.filter((c) => c !== city));
+  }
+
+  const showSuggested = !query && suggested.length > 0;
 
   return (
     <div className="relative">
       <label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-1">
         {label}
       </label>
-      <input
-        id={id}
-        type="text"
-        value={query}
-        autoComplete="off"
-        placeholder="City or airport code…"
-        className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-        onChange={(e) => {
-          setQuery(e.target.value);
-          onChange('');
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      />
-      {open && filtered.length > 0 && (
+      <div
+        className="min-h-[46px] w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus-within:ring-2 focus-within:ring-green-500 flex flex-wrap gap-1.5 items-center cursor-text"
+        onClick={() => setOpen(true)}
+      >
+        {values.map((city) => (
+          <span
+            key={city}
+            className="flex items-center gap-1 bg-green-100 text-green-800 text-xs font-semibold rounded-md px-2 py-1 shrink-0"
+          >
+            <span className="font-mono">{cityToIata[city] ?? city}</span>
+            <button
+              type="button"
+              className="text-green-600 hover:text-green-900 leading-none"
+              onMouseDown={(e) => { e.stopPropagation(); remove(city); }}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          id={id}
+          type="text"
+          value={query}
+          autoComplete="off"
+          placeholder={values.length === 0 ? 'City or airport code…' : 'Add more…'}
+          className="flex-1 min-w-[100px] text-sm outline-none bg-transparent py-0.5"
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+      </div>
+      {open && (showSuggested || filtered.length > 0) && (
         <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-72 overflow-auto">
+          {showSuggested && (
+            <>
+              <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50">
+                Suggested
+              </li>
+              {suggested.map((opt) => (
+                <li
+                  key={opt.city}
+                  className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50 hover:text-green-800 flex items-center justify-between gap-2"
+                  onMouseDown={() => select(opt.city)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {opt.iata && (
+                      <span className="text-xs font-mono font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded shrink-0">
+                        {opt.iata}
+                      </span>
+                    )}
+                    <span className="truncate text-gray-800">{opt.city}</span>
+                  </div>
+                  <span className="text-xs text-gray-400 shrink-0">{opt.distMi.toLocaleString()} mi</span>
+                </li>
+              ))}
+              {filtered.length > 0 && (
+                <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-t border-gray-100">
+                  All airports
+                </li>
+              )}
+            </>
+          )}
           {filtered.map((opt) => (
             <li
               key={opt.city}
@@ -207,7 +260,7 @@ function CityInput({
                 )}
                 <span className="truncate text-gray-800">{opt.city}</span>
               </div>
-              {sortByDistance && opt.distMi !== null && (
+              {opt.distMi !== null && (
                 <span className="text-xs text-gray-400 shrink-0">{opt.distMi.toLocaleString()} mi</span>
               )}
             </li>
@@ -269,51 +322,9 @@ function PathCard({ path, index, date }: { path: Path; index: number; date: stri
   );
 }
 
-function NearbyAirports({ city, field }: { city: string; field: 'from' | 'to' }) {
-  const nearby = useMemo(() => {
-    const coords = cityCoords[city];
-    if (!coords) return [];
-    return allCitiesAlpha
-      .filter((c) => c !== city && cityCoords[c])
-      .map((c) => ({
-        city: c,
-        iata: cityToIata[c],
-        distMi: Math.round(
-          haversineKm(coords[0], coords[1], cityCoords[c][0], cityCoords[c][1]) * 0.621371
-        ),
-      }))
-      .sort((a, b) => a.distMi - b.distMi)
-      .slice(0, 10);
-  }, [city]);
-
-  if (nearby.length === 0) return null;
-
-  return (
-    <div className="mt-4 pt-4 border-t border-gray-100">
-      <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-        10 nearest airports to {city} ({field === 'from' ? 'From' : 'To'})
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {nearby.map((opt) => (
-          <div
-            key={opt.city}
-            className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs"
-          >
-            {opt.iata && (
-              <span className="font-mono font-bold text-green-700">{opt.iata}</span>
-            )}
-            <span className="text-gray-700">{opt.city}</span>
-            <span className="text-gray-400 ml-1">{opt.distMi.toLocaleString()} mi</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function Page() {
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [froms, setFroms] = useState<string[]>([]);
+  const [tos, setTos] = useState<string[]>([]);
   const [maxLayovers, setMaxLayovers] = useState(3);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [results, setResults] = useState<Path[] | null>(null);
@@ -339,16 +350,24 @@ export default function Page() {
 
   function handleSearch() {
     setError('');
-    if (!from) { setError('Please select a departure city.'); return; }
-    if (!to) { setError('Please select a destination city.'); return; }
-    if (from === to) { setError('Departure and destination must be different.'); return; }
-    if (!allCitiesAlpha.includes(from)) { setError(`"${from}" is not a valid Frontier city.`); return; }
-    if (!allCitiesAlpha.includes(to)) { setError(`"${to}" is not a valid Frontier city.`); return; }
+    if (froms.length === 0) { setError('Please select at least one departure city.'); return; }
+    if (tos.length === 0) { setError('Please select at least one destination city.'); return; }
 
     setLoading(true);
     setTimeout(() => {
-      const paths = findPaths(adj, from, to, maxLayovers);
-      setResults(paths);
+      const seen = new Set<string>();
+      const allPaths: Path[] = [];
+      for (const from of froms) {
+        for (const to of tos) {
+          if (from === to) continue;
+          for (const p of findPaths(adj, from, to, maxLayovers >= 5 ? 99 : maxLayovers)) {
+            const key = p.stops.join('→');
+            if (!seen.has(key)) { seen.add(key); allPaths.push(p); }
+          }
+        }
+      }
+      allPaths.sort((a, b) => a.layovers - b.layovers || a.stops.length - b.stops.length);
+      setResults(allPaths);
       setLoading(false);
     }, 0);
   }
@@ -382,26 +401,18 @@ export default function Page() {
             <CityInput
               id="from"
               label="From"
-              value={from}
-              onChange={setFrom}
+              values={froms}
+              onChange={setFroms}
               userCoords={userCoords}
-              sortByDistance={true}
             />
             <CityInput
               id="to"
               label="To"
-              value={to}
-              onChange={setTo}
+              values={tos}
+              onChange={setTos}
               userCoords={userCoords}
-              sortByDistance={false}
             />
           </div>
-          {from && cityCoords[from] && (
-            <NearbyAirports city={from} field="from" />
-          )}
-          {to && cityCoords[to] && (
-            <NearbyAirports city={to} field="to" />
-          )}
 
           <div className="mb-5">
             <label htmlFor="travel-date" className="block text-sm font-semibold text-gray-700 mb-1">
@@ -420,13 +431,13 @@ export default function Page() {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Max Layovers:{' '}
               <span className="text-green-600 font-bold">
-                {maxLayovers === 0 ? 'Direct only' : maxLayovers >= 10 ? `${maxLayovers} (unlimited)` : maxLayovers}
+                {maxLayovers === 0 ? 'Direct only' : maxLayovers >= 5 ? 'Unlimited' : maxLayovers}
               </span>
             </label>
             <input
               type="range"
               min={0}
-              max={10}
+              max={5}
               value={maxLayovers}
               onChange={(e) => setMaxLayovers(+e.target.value)}
               className="w-full accent-green-600"
@@ -437,11 +448,6 @@ export default function Page() {
               <span>2</span>
               <span>3</span>
               <span>4</span>
-              <span>5</span>
-              <span>6</span>
-              <span>7</span>
-              <span>8</span>
-              <span>9</span>
               <span>Unlimited</span>
             </div>
           </div>
