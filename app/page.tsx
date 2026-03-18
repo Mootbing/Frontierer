@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import routesRaw from '@/data/routes.json';
 import { CityInputMulti, allCitiesAlpha } from '@/app/CityInput';
 import { cityToIata, MONTHS } from '@/lib/frontier';
@@ -66,8 +66,9 @@ function IataList({ cities }: { cities: string[] }) {
   );
 }
 
-export default function Page() {
+function PageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [froms, setFroms] = useState<string[]>([]);
   const [tos, setTos] = useState<string[]>([]);
   const [slider, setSlider] = useState(2);
@@ -80,6 +81,23 @@ export default function Page() {
   useEffect(() => {
     setPastSearches(loadSaved());
   }, []);
+
+  // Populate form fields from URL parameters
+  useEffect(() => {
+    const validCities = new Set(allCitiesAlpha);
+    const fromParams = searchParams.getAll('from').filter((c) => validCities.has(c));
+    const toParams = searchParams.getAll('to').filter((c) => validCities.has(c));
+    const dateParam = searchParams.get('date');
+    const stopsParam = searchParams.get('stops');
+
+    if (fromParams.length > 0) setFroms(fromParams);
+    if (toParams.length > 0) setTos(toParams);
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) setDate(dateParam);
+    if (stopsParam) {
+      const v = Math.min(5, Math.max(1, parseInt(stopsParam)));
+      if (!isNaN(v)) setSlider(v);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -238,5 +256,13 @@ export default function Page() {
         Frontier Airlines route data — {routes.length} direct city pairs
       </footer>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <PageContent />
+    </Suspense>
   );
 }
