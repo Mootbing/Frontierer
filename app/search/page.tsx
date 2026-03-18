@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import routesRaw from '@/data/routes.json';
 import { buildAdjacency, findPaths, type Path } from '@/lib/pathfinder';
-import { cityToIata, buildFrontierUrl } from '@/lib/frontier';
+import { cityToIata, buildFrontierUrl, resolveCity } from '@/lib/frontier';
 import { CityInputMulti, allCitiesAlpha } from '@/app/CityInput';
 import { haversineKm, cityCoords } from '@/lib/coords';
 import { Button } from '@/components/ui/button';
@@ -240,8 +240,9 @@ function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const fromParams = searchParams.getAll('from');
-  const toParams = searchParams.getAll('to');
+  const validCities = useMemo(() => new Set(allCitiesAlpha), []);
+  const fromParams = useMemo(() => searchParams.getAll('from').map((c) => resolveCity(c, validCities)).filter((c): c is string => c !== null), [searchParams, validCities]);
+  const toParams = useMemo(() => searchParams.getAll('to').map((c) => resolveCity(c, validCities)).filter((c): c is string => c !== null), [searchParams, validCities]);
   const dateParam = searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
   const sliderParam = Math.min(5, Math.max(1, parseInt(searchParams.get('stops') ?? '2')));
 

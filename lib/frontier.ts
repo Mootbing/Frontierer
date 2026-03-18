@@ -126,6 +126,18 @@ export const cityToIata: Record<string, string> = {
   'Zacatecas, Mexico': 'ZCL',
 };
 
+export const iataToCity: Record<string, string> = Object.fromEntries(
+  Object.entries(cityToIata).map(([city, iata]) => [iata, city])
+);
+
+/** Resolve a URL param value that may be an IATA code or a full city name. */
+export function resolveCity(value: string, validCities: Set<string>): string | null {
+  if (validCities.has(value)) return value;
+  const upper = value.toUpperCase();
+  if (iataToCity[upper] && validCities.has(iataToCity[upper])) return iataToCity[upper];
+  return null;
+}
+
 export function buildFrontierUrl(from: string, to: string, date: string): string {
   const o1 = cityToIata[from];
   const d1 = cityToIata[to];

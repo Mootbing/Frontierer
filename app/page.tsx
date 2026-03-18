@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import routesRaw from '@/data/routes.json';
 import { CityInputMulti, allCitiesAlpha } from '@/app/CityInput';
-import { cityToIata, MONTHS } from '@/lib/frontier';
+import { cityToIata, MONTHS, resolveCity } from '@/lib/frontier';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -82,11 +82,11 @@ function PageContent() {
     setPastSearches(loadSaved());
   }, []);
 
-  // Populate form fields from URL parameters
+  // Populate form fields from URL parameters (accepts IATA codes or full city names)
   useEffect(() => {
     const validCities = new Set(allCitiesAlpha);
-    const fromParams = searchParams.getAll('from').filter((c) => validCities.has(c));
-    const toParams = searchParams.getAll('to').filter((c) => validCities.has(c));
+    const fromParams = searchParams.getAll('from').map((c) => resolveCity(c, validCities)).filter((c): c is string => c !== null);
+    const toParams = searchParams.getAll('to').map((c) => resolveCity(c, validCities)).filter((c): c is string => c !== null);
     const dateParam = searchParams.get('date');
     const stopsParam = searchParams.get('stops');
 
