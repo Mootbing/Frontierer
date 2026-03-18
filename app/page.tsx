@@ -145,7 +145,7 @@ function CityInput({
         distMi: Math.round(haversineKm(userCoords[0], userCoords[1], cityCoords[c][0], cityCoords[c][1]) * 0.621371),
       }))
       .sort((a, b) => a.distMi - b.distMi)
-      .slice(0, 3);
+      .slice(0, 5);
   }, [userCoords, values]);
 
   const filtered = useMemo(() => {
