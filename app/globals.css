@@ -53,18 +53,44 @@
     --radius: 0.75rem;
   }
 
-  * {
-    @apply border-border;
-  }
-
   body {
     @apply bg-background text-foreground;
   }
 }
 
-/* Dark map tiles — invert OSM light tiles to dark basemap */
-.leaflet-tile {
+/* Dark map — invert OSM light tiles to dark basemap */
+.leaflet-tile-pane {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.7);
+}
+
+/* Dark Leaflet controls */
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background-color: #111111;
+  color: #f0f0f0;
+  border-color: #2a2a2a;
+}
+.leaflet-bar a:hover {
+  background-color: #1a1a1a;
+}
+.leaflet-control-attribution {
+  background: rgba(17, 17, 17, 0.85) !important;
+  color: #707070 !important;
+}
+.leaflet-control-attribution a {
+  color: #00853e !important;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #1a1a1a;
+  color: #f0f0f0;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+.leaflet-tooltip {
+  background: #1a1a1a;
+  color: #f0f0f0;
+  border-color: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 /* Dark date picker */

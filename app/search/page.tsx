@@ -174,9 +174,9 @@ function RouteGroupCard({
     if (!layoverMap.has(path.layovers)) layoverMap.set(path.layovers, []);
     layoverMap.get(path.layovers)!.push(path);
   }
-  for (const paths of layoverMap.values()) {
+  layoverMap.forEach((paths) => {
     paths.sort((a, b) => pathDistanceKm(a) - pathDistanceKm(b));
-  }
+  });
   const layoverGroups = Array.from(layoverMap.entries()).sort((a, b) => a[0] - b[0]);
 
   return (

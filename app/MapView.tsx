@@ -138,7 +138,7 @@ export default function MapView({ selectedPath, results }: { selectedPath: Path 
     <div
       ref={containerRef}
       style={{ width: '100%', height: '100%' }}
-      className="bg-gray-100"
+      className="bg-noir-surface"
     />
   );
 }

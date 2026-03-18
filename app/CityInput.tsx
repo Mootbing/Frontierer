@@ -64,17 +64,17 @@ export function CityInputMulti({
 
   return (
     <div className="relative">
-      <label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-sm font-semibold text-foreground mb-1">{label}</label>
       <div
-        className="min-h-[46px] w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus-within:ring-2 focus-within:ring-green-500 flex flex-wrap gap-1.5 items-center cursor-text"
+        className="min-h-[46px] w-full border border-noir-border rounded-lg px-3 py-2 bg-noir-raised focus-within:ring-2 focus-within:ring-[#00853e] flex flex-wrap gap-1.5 items-center cursor-text"
         onClick={() => setOpen(true)}
       >
         {values.map((city) => (
-          <span key={city} className="flex items-center gap-1 bg-green-100 text-green-800 text-xs font-semibold rounded-md px-2 py-1 shrink-0">
+          <span key={city} className="flex items-center gap-1 bg-noir-surface text-[#00853e] border border-[#00853e]/40 text-xs font-semibold rounded-md px-2 py-1 shrink-0">
             <span className="font-mono">{cityToIata[city] ?? city}</span>
             <button
               type="button"
-              className="text-green-600 hover:text-green-900 leading-none ml-0.5"
+              className="text-[#00853e]/60 hover:text-[#00853e] leading-none ml-0.5"
               onMouseDown={(e) => { e.stopPropagation(); remove(city); }}
             >
               ×
@@ -94,31 +94,31 @@ export function CityInputMulti({
         />
       </div>
       {open && (showSuggested || filtered.length > 0) && (
-        <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-72 overflow-auto">
+        <ul className="absolute z-20 w-full bg-noir-surface border border-noir-border rounded-lg shadow-2xl shadow-black/60 mt-1 max-h-72 overflow-auto">
           {showSuggested && (
             <>
-              <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50">
+              <li className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-noir-raised">
                 Suggested
               </li>
               {suggested.map((opt) => (
                 <li
                   key={opt.city}
-                  className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50 hover:text-green-800 flex items-center justify-between gap-2"
+                  className="px-4 py-2 text-sm cursor-pointer hover:bg-[#00853e]/10 hover:text-[#00853e] flex items-center justify-between gap-2"
                   onMouseDown={() => select(opt.city)}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {opt.iata && (
-                      <span className="text-xs font-mono font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded shrink-0">
+                      <span className="text-xs font-mono font-bold text-[#00853e] bg-[#00853e]/10 border border-[#00853e]/30 px-1.5 py-0.5 rounded shrink-0">
                         {opt.iata}
                       </span>
                     )}
-                    <span className="truncate text-gray-800">{opt.city}</span>
+                    <span className="truncate text-foreground">{opt.city}</span>
                   </div>
-                  <span className="text-xs text-gray-400 shrink-0">{opt.distMi.toLocaleString()} mi</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{opt.distMi.toLocaleString()} mi</span>
                 </li>
               ))}
               {filtered.length > 0 && (
-                <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-t border-gray-100">
+                <li className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-noir-raised border-t border-noir-border">
                   All airports
                 </li>
               )}
@@ -127,15 +127,15 @@ export function CityInputMulti({
           {filtered.map((opt) => (
             <li
               key={opt.city}
-              className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50 hover:text-green-800 flex items-center gap-2"
+              className="px-4 py-2 text-sm cursor-pointer hover:bg-[#00853e]/10 hover:text-[#00853e] flex items-center gap-2"
               onMouseDown={() => select(opt.city)}
             >
               {opt.iata && (
-                <span className="text-xs font-mono font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded shrink-0">
+                <span className="text-xs font-mono font-bold text-[#00853e] bg-[#00853e]/10 border border-[#00853e]/30 px-1.5 py-0.5 rounded shrink-0">
                   {opt.iata}
                 </span>
               )}
-              <span className="truncate text-gray-800">{opt.city}</span>
+              <span className="truncate text-foreground">{opt.city}</span>
             </li>
           ))}
         </ul>
