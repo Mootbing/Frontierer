@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation';
 import routesRaw from '@/data/routes.json';
 import { CityInputMulti, allCitiesAlpha } from '@/app/CityInput';
 import { cityToIata, MONTHS } from '@/lib/frontier';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
 
 const routes = routesRaw as { from: string; to: string }[];
 
@@ -53,7 +58,7 @@ function IataList({ cities }: { cities: string[] }) {
   return (
     <span className="flex flex-wrap gap-1">
       {cities.map((c) => (
-        <span key={c} className="font-mono text-xs font-bold bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">
+        <span key={c} className="font-mono text-xs font-bold bg-noir-raised text-foreground border border-noir-border px-1.5 py-0.5 rounded">
           {cityToIata[c] ?? c}
         </span>
       ))}
@@ -115,116 +120,121 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-[#00853e] text-white shadow-md">
+    <div className="min-h-screen bg-background">
+      <header className="bg-noir-surface border-b border-noir-border shadow-md">
         <div className="max-w-4xl mx-auto px-4 py-5 flex items-center gap-3">
-          <span className="text-3xl font-black tracking-tight">F</span>
+          <span className="text-3xl font-black tracking-tight text-[#00853e]">F</span>
           <div>
             <h1 className="text-xl font-bold leading-tight">Frontier Flight Search</h1>
-            <p className="text-green-100 text-xs">Find routes with layovers across {routes.length} city pairs</p>
+            <p className="text-muted-foreground text-xs">Find routes with layovers across {routes.length} city pairs</p>
           </div>
           {geoStatus === 'loading' && (
-            <span className="ml-auto text-xs text-green-200 animate-pulse">Getting your location…</span>
+            <span className="ml-auto text-xs text-muted-foreground animate-pulse">Getting your location…</span>
           )}
           {geoStatus === 'done' && userCoords && (
-            <span className="ml-auto text-xs text-green-200">Showing distances from your location</span>
+            <span className="ml-auto text-xs text-muted-foreground">Showing distances from your location</span>
           )}
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-md p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <CityInputMulti
-              id="from"
-              label="From"
-              values={froms}
-              onChange={setFroms}
-              userCoords={userCoords}
-              suggestCoords={userCoords}
-            />
-            <CityInputMulti
-              id="to"
-              label="To"
-              values={tos}
-              onChange={setTos}
-              userCoords={userCoords}
-            />
-          </div>
-
-          <div className="mb-5">
-            <label htmlFor="travel-date" className="block text-sm font-semibold text-gray-700 mb-1">Travel Date</label>
-            <input
-              id="travel-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-            />
-          </div>
-
-          <div className="mb-5">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Max Stops:{' '}
-              <span className="text-green-600 font-bold">{sliderLabel(slider)}</span>
-            </label>
-            <input
-              type="range" min={1} max={5} value={slider}
-              onChange={(e) => setSlider(+e.target.value)}
-              className="w-full accent-green-600"
-            />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>1</span><span>2</span><span>3</span><span>4</span><span>Unlimited</span>
+        <Card>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <CityInputMulti
+                id="from"
+                label="From"
+                values={froms}
+                onChange={setFroms}
+                userCoords={userCoords}
+                suggestCoords={userCoords}
+              />
+              <CityInputMulti
+                id="to"
+                label="To"
+                values={tos}
+                onChange={setTos}
+                userCoords={userCoords}
+              />
             </div>
-          </div>
 
-          {error && (
-            <p className="text-red-600 text-sm mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
-          )}
+            <div className="mb-5">
+              <Label htmlFor="travel-date" className="block text-sm font-semibold mb-1">Travel Date</Label>
+              <Input
+                id="travel-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="bg-noir-raised border-noir-border focus-visible:ring-[#00853e] w-auto"
+              />
+            </div>
 
-          <button
-            onClick={handleSearch}
-            className="w-full bg-[#00853e] hover:bg-[#005c2b] text-white font-bold py-3 px-6 rounded-xl transition-colors text-sm"
-          >
-            Find Routes
-          </button>
-
-          {pastSearches.length > 0 && (
-            <div className="mt-6">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Past Searches</p>
-              <div className="flex flex-col gap-2">
-                {pastSearches.map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer group"
-                    onClick={() => applyPastSearch(s)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                        <IataList cities={s.froms} />
-                        <span className="text-gray-400 text-xs">→</span>
-                        <IataList cities={s.tos} />
-                      </div>
-                      <p className="text-xs text-gray-400">
-                        {formatDate(s.date)} · {sliderLabel(s.slider)} stop{s.slider !== 1 ? 's' : ''} max
-                      </p>
-                    </div>
-                    <button
-                      className="text-gray-300 hover:text-red-400 transition-colors text-sm shrink-0 px-1"
-                      onClick={(e) => { e.stopPropagation(); deletePastSearch(i); }}
-                      aria-label="Remove"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+            <div className="mb-5">
+              <Label className="block text-sm font-semibold mb-2">
+                Max Stops:{' '}
+                <span className="text-[#00853e] font-bold">{sliderLabel(slider)}</span>
+              </Label>
+              <Slider
+                min={1}
+                max={5}
+                step={1}
+                value={[slider]}
+                onValueChange={([v]) => setSlider(v)}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>Unlimited</span>
               </div>
             </div>
-          )}
-        </div>
+
+            {error && (
+              <p className="text-red-400 text-sm mb-4 bg-red-950/50 border border-red-900 rounded-lg px-3 py-2">{error}</p>
+            )}
+
+            <Button
+              onClick={handleSearch}
+              className="w-full bg-[#00853e] hover:bg-noir-green-dim text-white font-bold py-3 px-6 rounded-xl transition-colors text-sm"
+            >
+              Find Routes
+            </Button>
+
+            {pastSearches.length > 0 && (
+              <div className="mt-6">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Past Searches</p>
+                <div className="flex flex-col gap-2">
+                  {pastSearches.map((s, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 border border-noir-border rounded-xl px-4 py-3 hover:bg-[#00853e]/5 hover:border-[#00853e]/50 transition-colors cursor-pointer group"
+                      onClick={() => applyPastSearch(s)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <IataList cities={s.froms} />
+                          <span className="text-muted-foreground text-xs">→</span>
+                          <IataList cities={s.tos} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(s.date)} · {sliderLabel(s.slider)} stop{s.slider !== 1 ? 's' : ''} max
+                        </p>
+                      </div>
+                      <button
+                        className="text-muted-foreground hover:text-red-400 transition-colors text-sm shrink-0 px-1"
+                        onClick={(e) => { e.stopPropagation(); deletePastSearch(i); }}
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
 
-      <footer className="text-center text-xs text-gray-400 py-6">
+      <footer className="text-center text-xs text-muted-foreground py-6">
         Frontier Airlines route data — {routes.length} direct city pairs
       </footer>
     </div>

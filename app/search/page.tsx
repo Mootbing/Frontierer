@@ -8,14 +8,20 @@ import { buildAdjacency, findPaths, type Path } from '@/lib/pathfinder';
 import { cityToIata, buildFrontierUrl } from '@/lib/frontier';
 import { CityInputMulti, allCitiesAlpha } from '@/app/CityInput';
 import { haversineKm, cityCoords } from '@/lib/coords';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const routes = routesRaw as { from: string; to: string }[];
 
 const MapView = dynamic(() => import('@/app/MapView'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-      <span className="text-gray-400 text-sm">Loading map…</span>
+    <div className="w-full h-full bg-noir-surface flex items-center justify-center">
+      <span className="text-muted-foreground text-sm">Loading map…</span>
     </div>
   ),
 });
@@ -56,9 +62,8 @@ function pathDistanceKm(path: Path): number {
 }
 
 function layoverBadgeClass(layovers: number) {
-  if (layovers === 0) return 'bg-green-100 text-green-700';
-  if (layovers === 1) return 'bg-blue-100 text-blue-700';
-  return 'bg-orange-100 text-orange-700';
+  if (layovers === 0) return 'bg-[#00853e]/15 text-[#00853e] border border-[#00853e]/30';
+  return 'bg-zinc-800 text-zinc-300 border border-zinc-700';
 }
 
 function layoverLabel(layovers: number) {
@@ -81,24 +86,24 @@ function RouteRow({
       onClick={onSelect}
       className={`w-full text-left px-4 py-2.5 flex items-center gap-2 transition-colors
         ${selected
-          ? 'bg-green-50 border-l-2 border-[#00853e]'
-          : 'hover:bg-gray-50 border-l-2 border-transparent'
+          ? 'bg-[#00853e]/8 border-l-glow'
+          : 'hover:bg-noir-raised border-l-2 border-transparent'
         }`}
     >
       <span className="flex flex-wrap items-center gap-0.5 flex-1 min-w-0">
         {path.stops.map((stop, i) => (
           <span key={i} className="flex items-center gap-0.5">
-            <span className="font-mono text-sm font-bold text-gray-700">
+            <span className="font-mono text-sm font-bold text-foreground">
               {cityToIata[stop] ?? stop}
             </span>
             {i < path.stops.length - 1 && (
-              <span className="text-gray-300 text-xs">›</span>
+              <span className="text-muted-foreground text-xs">›</span>
             )}
           </span>
         ))}
       </span>
-      <span className="text-xs text-gray-400 shrink-0">{distMi.toLocaleString()} mi</span>
-      <span className={`text-xs shrink-0 ${selected ? 'text-[#00853e] font-semibold' : 'text-gray-300'}`}>
+      <span className="text-xs text-muted-foreground shrink-0">{distMi.toLocaleString()} mi</span>
+      <span className={`text-xs shrink-0 ${selected ? 'text-[#00853e] font-semibold' : 'text-muted-foreground'}`}>
         {selected ? '●' : '○'}
       </span>
     </button>
@@ -119,15 +124,15 @@ function LayoverSection({
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="border-t border-gray-100">
+    <div className="border-t border-noir-border">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-noir-raised transition-colors"
       >
         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${layoverBadgeClass(layovers)}`}>
           {layoverLabel(layovers)}
         </span>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-muted-foreground">
           {paths.length} route{paths.length !== 1 ? 's' : ''} {open ? '▲' : '▼'}
         </span>
       </button>
@@ -175,11 +180,11 @@ function RouteGroupCard({
   const layoverGroups = Array.from(layoverMap.entries()).sort((a, b) => a[0] - b[0]);
 
   return (
-    <div
-      className={`bg-white rounded-xl overflow-hidden transition-all
+    <Card
+      className={`overflow-hidden transition-all
         ${hasSelected
-          ? 'border-2 border-[#00853e] shadow-md'
-          : 'border border-gray-200 shadow-sm'
+          ? 'ring-glow-green border-transparent'
+          : 'border-noir-border'
         }`}
     >
       {/* Card header */}
@@ -187,28 +192,25 @@ function RouteGroupCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xl font-black text-gray-800">{fromIata}</span>
-              <span className="text-gray-400 text-lg">→</span>
-              <span className="font-mono text-xl font-black text-gray-800">{toIata}</span>
+              <span className="font-mono text-xl font-black text-foreground">{fromIata}</span>
+              <span className="text-muted-foreground text-lg">→</span>
+              <span className="font-mono text-xl font-black text-foreground">{toIata}</span>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5 truncate">
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
               {group.from} → {group.to}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {bookingUrl && (
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#00853e] text-white hover:bg-[#005c2b] transition-colors"
-              >
-                Book ↗
-              </a>
+              <Button asChild size="sm" className="bg-[#00853e] hover:bg-noir-green-dim text-white">
+                <a href={bookingUrl} target="_blank" rel="noopener noreferrer">
+                  Book ↗
+                </a>
+              </Button>
             )}
             <button
               onClick={() => setExpanded(!expanded)}
-              className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors whitespace-nowrap"
+              className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-noir-raised transition-colors whitespace-nowrap"
             >
               {group.paths.length} route{group.paths.length !== 1 ? 's' : ''} {expanded ? '▲' : '▼'}
             </button>
@@ -230,7 +232,7 @@ function RouteGroupCard({
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -319,38 +321,41 @@ function SearchContent() {
         <CityInputMulti id="s-to" label="To" values={tos} onChange={setTos} userCoords={userCoords} />
       </div>
       <div className="mb-5">
-        <label htmlFor="s-date" className="block text-sm font-semibold text-gray-700 mb-1">Travel Date</label>
-        <input
+        <Label htmlFor="s-date" className="block text-sm font-semibold mb-1">Travel Date</Label>
+        <Input
           id="s-date"
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+          className="bg-noir-raised border-noir-border focus-visible:ring-[#00853e] w-auto"
         />
       </div>
       <div className="mb-5">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <Label className="block text-sm font-semibold mb-2">
           Max Stops:{' '}
-          <span className="text-green-600 font-bold">{sliderLabel(slider)}</span>
-        </label>
-        <input
-          type="range" min={1} max={5} value={slider}
-          onChange={(e) => setSlider(+e.target.value)}
-          className="w-full accent-green-600"
+          <span className="text-[#00853e] font-bold">{sliderLabel(slider)}</span>
+        </Label>
+        <Slider
+          min={1}
+          max={5}
+          step={1}
+          value={[slider]}
+          onValueChange={([v]) => setSlider(v)}
+          className="w-full"
         />
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
+        <div className="flex justify-between text-xs text-muted-foreground mt-1">
           <span>1</span><span>2</span><span>3</span><span>4</span><span>Unlimited</span>
         </div>
       </div>
       {error && (
-        <p className="text-red-600 text-sm mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-red-400 text-sm mb-4 bg-red-950/50 border border-red-900 rounded-lg px-3 py-2">{error}</p>
       )}
-      <button
+      <Button
         onClick={handleSearch}
-        className="w-full bg-[#00853e] hover:bg-[#005c2b] text-white font-bold py-3 px-6 rounded-xl transition-colors text-sm"
+        className="w-full bg-[#00853e] hover:bg-noir-green-dim text-white font-bold py-3 px-6 rounded-xl transition-colors text-sm"
       >
         Find Routes
-      </button>
+      </Button>
     </>
   );
 
@@ -358,40 +363,40 @@ function SearchContent() {
     <div className="h-screen flex flex-col overflow-hidden">
 
       {/* Topbar */}
-      <header className="h-14 shrink-0 bg-[#00853e] text-white flex items-center px-4 gap-3 shadow-md z-30 relative">
-        <a href="/" className="text-2xl font-black tracking-tight hover:opacity-80 transition-opacity">F</a>
+      <header className="h-14 shrink-0 bg-noir-surface border-b border-noir-border flex items-center px-4 gap-3 shadow-md z-30 relative">
+        <a href="/" className="text-2xl font-black tracking-tight text-[#00853e] hover:opacity-80 transition-opacity">F</a>
         <div className="min-w-0 hidden sm:block">
           <h1 className="text-sm font-bold leading-tight">Frontier Flight Search</h1>
           {fromParams.length > 0 && toParams.length > 0 && (
-            <p className="text-green-200 text-xs truncate">
+            <p className="text-[#00853e] text-xs truncate">
               {fromParams.map((c) => (cityToIata as Record<string,string>)[c] ?? c).join(', ')} → {toParams.map((c) => (cityToIata as Record<string,string>)[c] ?? c).join(', ')}
             </p>
           )}
         </div>
         <div className="ml-auto flex items-center gap-3">
           {!loading && results && results.length > 0 && (
-            <span className="text-xs text-green-200 hidden md:block">
+            <span className="text-xs text-muted-foreground hidden md:block">
               {results.length} route{results.length !== 1 ? 's' : ''} found
             </span>
           )}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="flex flex-col justify-center items-center gap-1.5 w-9 h-9 rounded-lg hover:bg-[#005c2b] transition-colors"
+            className="flex flex-col justify-center items-center gap-1.5 w-9 h-9 rounded-lg hover:bg-noir-raised transition-colors"
             aria-label="Toggle search"
           >
-            <span className={`block w-5 h-0.5 bg-white rounded transition-all duration-200 origin-center ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
-            <span className={`block w-5 h-0.5 bg-white rounded transition-all duration-200 ${menuOpen ? 'opacity-0 scale-x-0' : ''}`} />
-            <span className={`block w-5 h-0.5 bg-white rounded transition-all duration-200 origin-center ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-foreground rounded transition-all duration-200 origin-center ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-foreground rounded transition-all duration-200 ${menuOpen ? 'opacity-0 scale-x-0' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-foreground rounded transition-all duration-200 origin-center ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
           </button>
         </div>
       </header>
 
-      {/* Hamburger dropdown — fixed so it sits above Leaflet's stacking context */}
+      {/* Hamburger dropdown */}
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setMenuOpen(false)} />
-          <div className="fixed top-14 right-0 z-50 bg-white shadow-2xl rounded-bl-2xl p-6 w-full sm:w-[380px] max-h-[calc(100vh-3.5rem)] overflow-y-auto">
-            <h2 className="text-sm font-bold text-gray-700 mb-5">Modify Search</h2>
+          <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setMenuOpen(false)} />
+          <div className="fixed top-14 right-0 z-50 bg-noir-surface border-l border-b border-noir-border shadow-2xl rounded-bl-2xl p-6 w-full sm:w-[380px] max-h-[calc(100vh-3.5rem)] overflow-y-auto">
+            <h2 className="text-sm font-bold text-foreground mb-5">Modify Search</h2>
             {searchForm}
           </div>
         </>
@@ -406,11 +411,11 @@ function SearchContent() {
         </div>
 
         {/* Results — right half */}
-        <div className="w-1/2 overflow-y-auto bg-gray-50 border-l border-gray-200">
+        <ScrollArea className="w-1/2 border-l border-noir-border bg-noir-bg">
           <div className="p-4">
 
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-bold text-gray-800">
+              <h2 className="text-base font-bold text-foreground">
                 {loading ? 'Searching…' :
                   results === null ? 'Enter a search above' :
                   results.length === 0 ? 'No routes found' :
@@ -419,14 +424,14 @@ function SearchContent() {
               {!loading && results && results.length > 0 && (
                 <div className="flex gap-1.5">
                   {directCount > 0 && (
-                    <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-[#00853e]/15 text-[#00853e] border border-[#00853e]/30 font-semibold px-2 py-0.5 rounded-full">
                       {directCount} direct
                     </span>
                   )}
                   {[1, 2].map((n) => {
                     const count = results.filter((p) => p.layovers === n).length;
                     return count > 0 ? (
-                      <span key={n} className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+                      <span key={n} className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 font-semibold px-2 py-0.5 rounded-full">
                         {count} · {n} stop{n > 1 ? 's' : ''}
                       </span>
                     ) : null;
@@ -434,7 +439,7 @@ function SearchContent() {
                   {(() => {
                     const count = results.filter((p) => p.layovers >= 3).length;
                     return count > 0 ? (
-                      <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 font-semibold px-2 py-0.5 rounded-full">
                         {count} · 3+ stops
                       </span>
                     ) : null;
@@ -444,34 +449,34 @@ function SearchContent() {
             </div>
 
             {selectedPath && (
-              <div className="mb-3 px-3 py-2 bg-green-50 border border-green-200 rounded-lg flex items-center gap-4 text-xs text-green-800">
+              <div className="mb-3 px-3 py-2 bg-noir-raised border border-noir-border rounded-lg flex items-center gap-4 text-xs text-foreground">
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3 h-3 rounded-full bg-[#00853e] ring-2 ring-white ring-offset-1" />
+                  <span className="inline-block w-3 h-3 rounded-full bg-[#00853e] ring-2 ring-noir-bg ring-offset-1" />
                   Origin
                 </span>
                 {selectedPath.layovers > 0 && (
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-3 h-3 rounded-full bg-[#f97316] ring-2 ring-white ring-offset-1" />
+                    <span className="inline-block w-3 h-3 rounded-full bg-[#f97316] ring-2 ring-noir-bg ring-offset-1" />
                     Layover
                   </span>
                 )}
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3 h-3 rounded-full bg-[#1d4ed8] ring-2 ring-white ring-offset-1" />
+                  <span className="inline-block w-3 h-3 rounded-full bg-[#1d4ed8] ring-2 ring-noir-bg ring-offset-1" />
                   Destination
                 </span>
               </div>
             )}
 
             {loading ? (
-              <div className="flex items-center justify-center py-16 text-gray-400 text-sm">Searching…</div>
+              <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">Searching…</div>
             ) : results === null ? (
-              <div className="text-center py-16 text-gray-400 text-sm">
+              <div className="text-center py-16 text-muted-foreground text-sm">
                 Use the search above to find routes.
               </div>
             ) : results.length === 0 ? (
-              <div className="text-center py-16 text-gray-500">
+              <div className="text-center py-16 text-muted-foreground">
                 <p className="text-4xl mb-3">✈️</p>
-                <p className="font-semibold">No routes found</p>
+                <p className="font-semibold text-foreground">No routes found</p>
                 <p className="text-sm mt-1">Try increasing max stops or check city names.</p>
               </div>
             ) : (
@@ -488,7 +493,7 @@ function SearchContent() {
               </div>
             )}
           </div>
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );
@@ -497,7 +502,7 @@ function SearchContent() {
 export default function SearchPage() {
   return (
     <Suspense fallback={
-      <div className="h-screen flex items-center justify-center text-gray-400 text-sm">Loading…</div>
+      <div className="h-screen flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
     }>
       <SearchContent />
     </Suspense>

@@ -5,3 +5,72 @@
 * {
   box-sizing: border-box;
 }
+
+@layer base {
+  :root {
+    --background:        0 0% 4%;
+    --foreground:        0 0% 94%;
+    --card:              0 0% 7%;
+    --card-foreground:   0 0% 94%;
+    --popover:           0 0% 10%;
+    --popover-foreground: 0 0% 94%;
+    --primary:           145 100% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary:         0 0% 10%;
+    --secondary-foreground: 0 0% 94%;
+    --muted:             0 0% 10%;
+    --muted-foreground:  0 0% 44%;
+    --accent:            145 100% 26%;
+    --accent-foreground: 0 0% 100%;
+    --destructive:       0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border:            0 0% 16%;
+    --input:             0 0% 16%;
+    --ring:              145 100% 26%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background:        0 0% 4%;
+    --foreground:        0 0% 94%;
+    --card:              0 0% 7%;
+    --card-foreground:   0 0% 94%;
+    --popover:           0 0% 10%;
+    --popover-foreground: 0 0% 94%;
+    --primary:           145 100% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary:         0 0% 10%;
+    --secondary-foreground: 0 0% 94%;
+    --muted:             0 0% 10%;
+    --muted-foreground:  0 0% 44%;
+    --accent:            145 100% 26%;
+    --accent-foreground: 0 0% 100%;
+    --destructive:       0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border:            0 0% 16%;
+    --input:             0 0% 16%;
+    --ring:              145 100% 26%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Dark map tiles — invert OSM light tiles to dark basemap */
+.leaflet-tile {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.7);
+}
+
+/* Dark date picker */
+input[type="date"] { color-scheme: dark; }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; }
+
+/* Custom utilities */
+.ring-glow-green { box-shadow: 0 0 0 2px #00853e, 0 0 14px rgba(0,133,62,0.45); }
+.border-l-glow { border-left: 2px solid #00853e; box-shadow: inset 2px 0 8px rgba(0,133,62,0.3); }
