@@ -321,7 +321,6 @@ export default function Page() {
   const [error, setError] = useState('');
   const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'done' | 'denied'>('idle');
-  const [lastSelectedField, setLastSelectedField] = useState<'from' | 'to' | null>(null);
 
   const adj = useMemo(() => buildAdjacency(routes), []);
 
@@ -384,11 +383,7 @@ export default function Page() {
               id="from"
               label="From"
               value={from}
-              onChange={(v) => {
-                setFrom(v);
-                if (v && allCitiesAlpha.includes(v)) setLastSelectedField('from');
-                else if (!v) setLastSelectedField((prev) => (prev === 'from' ? null : prev));
-              }}
+              onChange={setFrom}
               userCoords={userCoords}
               sortByDistance={true}
             />
@@ -396,19 +391,15 @@ export default function Page() {
               id="to"
               label="To"
               value={to}
-              onChange={(v) => {
-                setTo(v);
-                if (v && allCitiesAlpha.includes(v)) setLastSelectedField('to');
-                else if (!v) setLastSelectedField((prev) => (prev === 'to' ? null : prev));
-              }}
+              onChange={setTo}
               userCoords={userCoords}
               sortByDistance={false}
             />
           </div>
-          {lastSelectedField === 'from' && from && cityCoords[from] && (
+          {from && cityCoords[from] && (
             <NearbyAirports city={from} field="from" />
           )}
-          {lastSelectedField === 'to' && to && cityCoords[to] && (
+          {to && cityCoords[to] && (
             <NearbyAirports city={to} field="to" />
           )}
 
