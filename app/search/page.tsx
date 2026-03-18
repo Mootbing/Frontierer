@@ -7,6 +7,7 @@ import routesRaw from '@/data/routes.json';
 import { buildAdjacency, findPaths, type Path } from '@/lib/pathfinder';
 import { cityToIata, buildFrontierUrl } from '@/lib/frontier';
 import { CityInputMulti, allCitiesAlpha } from '@/app/CityInput';
+import { haversineKm, cityCoords } from '@/lib/coords';
 
 const routes = routesRaw as { from: string; to: string }[];
 
@@ -19,7 +20,6 @@ const MapView = dynamic(() => import('@/app/MapView'), {
   ),
 });
 
-// Slider: 1=1 stop, 2=2 stops, 3=3 stops, 4=4 stops, 5=unlimited
 function sliderLabel(v: number) {
   return v >= 5 ? 'Unlimited' : String(v);
 }
@@ -27,49 +27,67 @@ function sliderToMaxLayovers(v: number) {
   return v >= 5 ? 10 : v;
 }
 
-function PathCard({
+type RouteGroup = {
+  from: string;
+  to: string;
+  paths: Path[];
+};
+
+function groupPathsByRoute(paths: Path[]): RouteGroup[] {
+  const map = new Map<string, RouteGroup>();
+  for (const path of paths) {
+    const from = path.stops[0];
+    const to = path.stops[path.stops.length - 1];
+    const key = `${from}|${to}`;
+    if (!map.has(key)) map.set(key, { from, to, paths: [] });
+    map.get(key)!.paths.push(path);
+  }
+  return Array.from(map.values());
+}
+
+function pathDistanceKm(path: Path): number {
+  let total = 0;
+  for (let i = 0; i < path.stops.length - 1; i++) {
+    const a = cityCoords[path.stops[i]];
+    const b = cityCoords[path.stops[i + 1]];
+    if (a && b) total += haversineKm(a[0], a[1], b[0], b[1]);
+  }
+  return total;
+}
+
+function layoverBadgeClass(layovers: number) {
+  if (layovers === 0) return 'bg-green-100 text-green-700';
+  if (layovers === 1) return 'bg-blue-100 text-blue-700';
+  return 'bg-orange-100 text-orange-700';
+}
+
+function layoverLabel(layovers: number) {
+  if (layovers === 0) return 'Direct';
+  return `${layovers} stop${layovers > 1 ? 's' : ''}`;
+}
+
+function RouteRow({
   path,
-  index,
-  date,
   selected,
-  onClick,
+  onSelect,
 }: {
   path: Path;
-  index: number;
-  date: string;
   selected: boolean;
-  onClick: () => void;
+  onSelect: () => void;
 }) {
-  const origin = path.stops[0];
-  const destination = path.stops[path.stops.length - 1];
-  const bookingUrl = buildFrontierUrl(origin, destination, date);
-
+  const distMi = Math.round(pathDistanceKm(path) * 0.621371);
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
-      className={`bg-white rounded-xl p-4 cursor-pointer transition-all outline-none
+    <button
+      onClick={onSelect}
+      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 transition-colors
         ${selected
-          ? 'border-2 border-[#00853e] shadow-md ring-2 ring-[#00853e]/10'
-          : 'border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300'
+          ? 'bg-green-50 border-l-2 border-[#00853e]'
+          : 'hover:bg-gray-50 border-l-2 border-transparent'
         }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-gray-400 tracking-wide font-medium">Route #{index + 1}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-          path.layovers === 0 ? 'bg-green-100 text-green-700' :
-          path.layovers === 1 ? 'bg-blue-100 text-blue-700' :
-          'bg-orange-100 text-orange-700'
-        }`}>
-          {path.layovers === 0 ? 'Direct' : `${path.layovers} stop${path.layovers > 1 ? 's' : ''}`}
-        </span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1 mb-1.5">
+      <span className="flex flex-wrap items-center gap-0.5 flex-1 min-w-0">
         {path.stops.map((stop, i) => (
-          <span key={i} className="flex items-center gap-1">
+          <span key={i} className="flex items-center gap-0.5">
             <span className="font-mono text-sm font-bold text-gray-700">
               {cityToIata[stop] ?? stop}
             </span>
@@ -78,26 +96,140 @@ function PathCard({
             )}
           </span>
         ))}
-      </div>
+      </span>
+      <span className="text-xs text-gray-400 shrink-0">{distMi.toLocaleString()} mi</span>
+      <span className={`text-xs shrink-0 ${selected ? 'text-[#00853e] font-semibold' : 'text-gray-300'}`}>
+        {selected ? '●' : '○'}
+      </span>
+    </button>
+  );
+}
 
-      <p className="text-xs text-gray-400 mb-3 leading-relaxed">{path.stops.join(' · ')}</p>
+function LayoverSection({
+  layovers,
+  paths,
+  selectedPath,
+  onSelectPath,
+}: {
+  layovers: number;
+  paths: Path[];
+  selectedPath: Path | null;
+  onSelectPath: (path: Path | null) => void;
+}) {
+  const [open, setOpen] = useState(true);
 
-      <div className="flex items-center justify-between">
-        <span className={`text-xs ${selected ? 'text-[#00853e] font-semibold' : 'text-gray-300'}`}>
-          {selected ? '● Shown on map' : '○ Click to view on map'}
+  return (
+    <div className="border-t border-gray-100">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors"
+      >
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${layoverBadgeClass(layovers)}`}>
+          {layoverLabel(layovers)}
         </span>
-        {bookingUrl && (
-          <a
-            href={bookingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#00853e] text-white hover:bg-[#005c2b] transition-colors"
-          >
-            Book ↗
-          </a>
-        )}
+        <span className="text-xs text-gray-400">
+          {paths.length} route{paths.length !== 1 ? 's' : ''} {open ? '▲' : '▼'}
+        </span>
+      </button>
+      {open && (
+        <div>
+          {paths.map((path, i) => (
+            <RouteRow
+              key={i}
+              path={path}
+              selected={selectedPath === path}
+              onSelect={() => onSelectPath(selectedPath === path ? null : path)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RouteGroupCard({
+  group,
+  date,
+  selectedPath,
+  onSelectPath,
+}: {
+  group: RouteGroup;
+  date: string;
+  selectedPath: Path | null;
+  onSelectPath: (path: Path | null) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const fromIata = cityToIata[group.from] ?? group.from;
+  const toIata = cityToIata[group.to] ?? group.to;
+  const bookingUrl = buildFrontierUrl(group.from, group.to, date);
+  const hasSelected = group.paths.some((p) => p === selectedPath);
+
+  const layoverMap = new Map<number, Path[]>();
+  for (const path of group.paths) {
+    if (!layoverMap.has(path.layovers)) layoverMap.set(path.layovers, []);
+    layoverMap.get(path.layovers)!.push(path);
+  }
+  for (const paths of layoverMap.values()) {
+    paths.sort((a, b) => pathDistanceKm(a) - pathDistanceKm(b));
+  }
+  const layoverGroups = Array.from(layoverMap.entries()).sort((a, b) => a[0] - b[0]);
+
+  return (
+    <div
+      className={`bg-white rounded-xl overflow-hidden transition-all
+        ${hasSelected
+          ? 'border-2 border-[#00853e] shadow-md'
+          : 'border border-gray-200 shadow-sm'
+        }`}
+    >
+      {/* Card header */}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xl font-black text-gray-800">{fromIata}</span>
+              <span className="text-gray-400 text-lg">→</span>
+              <span className="font-mono text-xl font-black text-gray-800">{toIata}</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5 truncate">
+              {group.from} → {group.to}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {bookingUrl && (
+              <a
+                href={bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#00853e] text-white hover:bg-[#005c2b] transition-colors"
+              >
+                Book ↗
+              </a>
+            )}
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors whitespace-nowrap"
+            >
+              {group.paths.length} route{group.paths.length !== 1 ? 's' : ''} {expanded ? '▲' : '▼'}
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Collapsible layover sections */}
+      {expanded && (
+        <div>
+          {layoverGroups.map(([layovers, paths]) => (
+            <LayoverSection
+              key={layovers}
+              layovers={layovers}
+              paths={paths}
+              selectedPath={selectedPath}
+              onSelectPath={onSelectPath}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -111,7 +243,6 @@ function SearchContent() {
   const dateParam = searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
   const sliderParam = Math.min(5, Math.max(1, parseInt(searchParams.get('stops') ?? '2')));
 
-  // Hamburger form state — synced from URL params
   const [froms, setFroms] = useState<string[]>(fromParams);
   const [tos, setTos] = useState<string[]>(toParams);
   const [date, setDate] = useState(dateParam);
@@ -125,7 +256,6 @@ function SearchContent() {
 
   const adj = useMemo(() => buildAdjacency(routes), []);
 
-  // Sync form state when URL params change
   useEffect(() => {
     setFroms(fromParams);
     setTos(toParams);
@@ -133,7 +263,6 @@ function SearchContent() {
     setSlider(sliderParam);
   }, [fromParams.join(','), toParams.join(','), dateParam, sliderParam]);
 
-  // Geolocation
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -143,14 +272,13 @@ function SearchContent() {
     );
   }, []);
 
-  // Run pathfinding when URL params change
   useEffect(() => {
     if (fromParams.length === 0 || toParams.length === 0) { setResults(null); return; }
     setLoading(true);
     setSelectedPath(null);
     const timer = setTimeout(() => {
       const seen = new Set<string>();
-      const allPaths: import('@/lib/pathfinder').Path[] = [];
+      const allPaths: Path[] = [];
       for (const from of fromParams) {
         for (const to of toParams) {
           if (from === to || !allCitiesAlpha.includes(from) || !allCitiesAlpha.includes(to)) continue;
@@ -182,6 +310,7 @@ function SearchContent() {
 
   const directCount = results?.filter((p) => p.layovers === 0).length ?? 0;
   const withLayovers = results?.filter((p) => p.layovers > 0).length ?? 0;
+  const groups = results ? groupPathsByRoute(results) : [];
 
   const searchForm = (
     <>
@@ -226,10 +355,10 @@ function SearchContent() {
   );
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden">
 
       {/* Topbar */}
-      <header className="h-14 shrink-0 bg-[#00853e] text-white flex items-center px-4 gap-3 shadow-md z-30">
+      <header className="h-14 shrink-0 bg-[#00853e] text-white flex items-center px-4 gap-3 shadow-md z-30 relative">
         <a href="/" className="text-2xl font-black tracking-tight hover:opacity-80 transition-opacity">F</a>
         <div className="min-w-0 hidden sm:block">
           <h1 className="text-sm font-bold leading-tight">Frontier Flight Search</h1>
@@ -257,11 +386,11 @@ function SearchContent() {
         </div>
       </header>
 
-      {/* Hamburger dropdown */}
+      {/* Hamburger dropdown — fixed so it sits above Leaflet's stacking context */}
       {menuOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setMenuOpen(false)} />
-          <div className="absolute top-14 right-0 z-50 bg-white shadow-2xl rounded-bl-2xl p-6 w-full sm:w-[380px] max-h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <div className="fixed top-14 right-0 z-50 bg-white shadow-2xl rounded-bl-2xl p-6 w-full sm:w-[380px] max-h-[calc(100vh-3.5rem)] overflow-y-auto">
             <h2 className="text-sm font-bold text-gray-700 mb-5">Modify Search</h2>
             {searchForm}
           </div>
@@ -285,7 +414,7 @@ function SearchContent() {
                 {loading ? 'Searching…' :
                   results === null ? 'Enter a search above' :
                   results.length === 0 ? 'No routes found' :
-                  `${results.length} route${results.length !== 1 ? 's' : ''} found`}
+                  `${groups.length} flight${groups.length !== 1 ? 's' : ''} · ${results.length} route${results.length !== 1 ? 's' : ''}`}
               </h2>
               {!loading && results && results.length > 0 && (
                 <div className="flex gap-1.5">
@@ -336,14 +465,13 @@ function SearchContent() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {results.map((path, i) => (
-                  <PathCard
+                {groups.map((group, i) => (
+                  <RouteGroupCard
                     key={i}
-                    path={path}
-                    index={i}
-                    date={date}
-                    selected={selectedPath === path}
-                    onClick={() => setSelectedPath(selectedPath === path ? null : path)}
+                    group={group}
+                    date={dateParam}
+                    selectedPath={selectedPath}
+                    onSelectPath={setSelectedPath}
                   />
                 ))}
               </div>
