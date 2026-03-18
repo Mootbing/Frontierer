@@ -125,28 +125,35 @@ function CityInput({
   values,
   onChange,
   userCoords,
+  suggestFrom,
 }: {
   id: string;
   label: string;
   values: string[];
   onChange: (v: string[]) => void;
   userCoords: [number, number] | null;
+  suggestFrom?: string; // if set, suggestions are distances from this city
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   const suggested = useMemo(() => {
-    if (!userCoords) return [];
+    // For "To": only show suggestions if a from-city is selected, based on its coords
+    // For "From": use user location
+    const refCoords: [number, number] | null = suggestFrom !== undefined
+      ? (cityCoords[suggestFrom] ?? null)
+      : userCoords;
+    if (!refCoords) return [];
     return allCitiesAlpha
-      .filter((c) => !values.includes(c) && cityCoords[c])
+      .filter((c) => !values.includes(c) && cityCoords[c] && c !== suggestFrom)
       .map((c) => ({
         city: c,
         iata: cityToIata[c],
-        distMi: Math.round(haversineKm(userCoords[0], userCoords[1], cityCoords[c][0], cityCoords[c][1]) * 0.621371),
+        distMi: Math.round(haversineKm(refCoords[0], refCoords[1], cityCoords[c][0], cityCoords[c][1]) * 0.621371),
       }))
       .sort((a, b) => a.distMi - b.distMi)
       .slice(0, 5);
-  }, [userCoords, values]);
+  }, [userCoords, suggestFrom, values]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -411,6 +418,7 @@ export default function Page() {
               values={tos}
               onChange={setTos}
               userCoords={userCoords}
+              suggestFrom={froms[0]}
             />
           </div>
 
