@@ -402,7 +402,7 @@ function SearchContent() {
 
         {/* Map — left half */}
         <div className="w-1/2 relative">
-          <MapView selectedPath={selectedPath} />
+          <MapView selectedPath={selectedPath} results={results} />
         </div>
 
         {/* Results — right half */}
@@ -423,11 +423,22 @@ function SearchContent() {
                       {directCount} direct
                     </span>
                   )}
-                  {withLayovers > 0 && (
-                    <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
-                      {withLayovers} w/ stops
-                    </span>
-                  )}
+                  {[1, 2].map((n) => {
+                    const count = results.filter((p) => p.layovers === n).length;
+                    return count > 0 ? (
+                      <span key={n} className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+                        {count} · {n} stop{n > 1 ? 's' : ''}
+                      </span>
+                    ) : null;
+                  })}
+                  {(() => {
+                    const count = results.filter((p) => p.layovers >= 3).length;
+                    return count > 0 ? (
+                      <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+                        {count} · 3+ stops
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
               )}
             </div>

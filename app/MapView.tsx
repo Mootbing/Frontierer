@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Path } from '@/lib/pathfinder';
 import { cityCoords } from '@/lib/coords';
 
-export default function MapView({ selectedPath }: { selectedPath: Path | null }) {
+export default function MapView({ selectedPath, results }: { selectedPath: Path | null; results?: Path[] | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const overlaysRef = useRef<any[]>([]);
@@ -30,7 +30,52 @@ export default function MapView({ selectedPath }: { selectedPath: Path | null })
       overlaysRef.current = [];
 
       if (!selectedPath) {
-        map.setView([37.5, -96], 4);
+        // Grey background pins for all airports — click to reveal name
+        Object.entries(cityCoords).forEach(([city, c]) => {
+          const marker = L.circleMarker([c[0], c[1]], {
+            radius: 5,
+            fillColor: '#9ca3af',
+            color: '#6b7280',
+            weight: 1,
+            fillOpacity: 0.45,
+          }).bindPopup(city);
+          marker.addTo(map);
+          overlaysRef.current.push(marker);
+        });
+
+        if (results && results.length > 0) {
+          const froms = new Set(results.map((p) => p.stops[0]));
+          const tos = new Set(results.map((p) => p.stops[p.stops.length - 1]));
+          // destinations first (below), then departures on top
+          tos.forEach((city) => {
+            const c = cityCoords[city];
+            if (!c) return;
+            const marker = L.circleMarker([c[0], c[1]], {
+              radius: 8,
+              fillColor: '#1d4ed8',
+              color: '#ffffff',
+              weight: 2,
+              fillOpacity: 0.85,
+            }).bindTooltip(city, { permanent: false, direction: 'top' });
+            marker.addTo(map);
+            overlaysRef.current.push(marker);
+          });
+          froms.forEach((city) => {
+            const c = cityCoords[city];
+            if (!c) return;
+            const marker = L.circleMarker([c[0], c[1]], {
+              radius: 8,
+              fillColor: '#00853e',
+              color: '#ffffff',
+              weight: 2,
+              fillOpacity: 0.85,
+            }).bindTooltip(city, { permanent: false, direction: 'top' });
+            marker.addTo(map);
+            overlaysRef.current.push(marker);
+          });
+        } else {
+          map.setView([37.5, -96], 4);
+        }
         return;
       }
 
@@ -77,7 +122,7 @@ export default function MapView({ selectedPath }: { selectedPath: Path | null })
     });
 
     return () => { cancelled = true; };
-  }, [selectedPath]);
+  }, [selectedPath, results]);
 
   // Cleanup on unmount
   useEffect(() => {
