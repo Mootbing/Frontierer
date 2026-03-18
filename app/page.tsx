@@ -129,133 +129,92 @@ function buildFrontierUrl(from: string, to: string, date: string): string {
   return `https://booking.flyfrontier.com/Flight/InternalSelect?o1=${o1}&d1=${d1}&dd1=${dd1}&ADT=1&mon=true&promo=&ftype=DD`;
 }
 
-function CityInput({
-  id,
-  label,
-  value,
-  onChange,
-  userCoords,
-  sortByDistance,
-  suggestFrom,
+// Multi-select for both From and To.
+// suggestCoords: if provided, suggestions always come from those coords (From — user location).
+// If not provided, suggestions come from values[0] and only appear after first selection (To).
+function CityInputMulti({
+  id, label, values, onChange, userCoords, suggestCoords,
 }: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
+  id: string; label: string; values: string[];
+  onChange: (v: string[]) => void;
   userCoords: [number, number] | null;
-  sortByDistance: boolean;
-  suggestFrom?: string;
+  suggestCoords?: [number, number] | null; // From passes userCoords; To omits this
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
+  const [query, setQuery] = useState('');
 
-  // 5 nearest airports to suggestFrom city (only for To field)
   const suggested = useMemo(() => {
-    if (!suggestFrom || !cityCoords[suggestFrom]) return [];
-    const ref = cityCoords[suggestFrom];
+    const ref: [number, number] | null =
+      suggestCoords !== undefined
+        ? suggestCoords                                          // From: use user location
+        : (values.length > 0 && cityCoords[values[0]]) ? cityCoords[values[0]] : null; // To: use first pick
+    if (!ref) return [];
     return allCitiesAlpha
-      .filter((c) => c !== suggestFrom && cityCoords[c])
+      .filter((c) => !values.includes(c) && cityCoords[c])
       .map((c) => ({
-        city: c,
-        iata: cityToIata[c],
+        city: c, iata: cityToIata[c],
         distMi: Math.round(haversineKm(ref[0], ref[1], cityCoords[c][0], cityCoords[c][1]) * 0.621371),
       }))
       .sort((a, b) => a.distMi - b.distMi)
       .slice(0, 5);
-  }, [suggestFrom]);
+  }, [values, suggestCoords]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    let list = allCitiesAlpha.map((city) => {
-      const iata = cityToIata[city];
-      let distMi: number | null = null;
-      if (userCoords && cityCoords[city]) {
-        const km = haversineKm(userCoords[0], userCoords[1], cityCoords[city][0], cityCoords[city][1]);
-        distMi = Math.round(km * 0.621371);
-      }
-      return { city, iata, distMi };
-    });
-    if (q) {
-      list = list.filter(
-        (o) => o.city.toLowerCase().includes(q) || (o.iata && o.iata.toLowerCase().startsWith(q))
-      );
-    }
-    if (sortByDistance && userCoords) {
-      list = [...list].sort((a, b) => (a.distMi ?? Infinity) - (b.distMi ?? Infinity));
-    }
-    return list;
-  }, [query, userCoords, sortByDistance]);
+    return allCitiesAlpha
+      .filter((c) => !values.includes(c))
+      .map((c) => ({ city: c, iata: cityToIata[c] }))
+      .filter((o) => !q || o.city.toLowerCase().includes(q) || (o.iata && o.iata.toLowerCase().startsWith(q)));
+  }, [query, values]);
 
-  function select(city: string) {
-    setQuery(city);
-    onChange(city);
-    setOpen(false);
-  }
+  function select(city: string) { onChange([...values, city]); setQuery(''); }
+  function remove(city: string) { onChange(values.filter((c) => c !== city)); }
 
   const showSuggested = !query && suggested.length > 0;
 
   return (
     <div className="relative">
       <label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
-      <input
-        id={id}
-        type="text"
-        value={query}
-        autoComplete="off"
-        placeholder="City or airport code…"
-        className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-        onChange={(e) => { setQuery(e.target.value); onChange(''); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      />
+      <div
+        className="min-h-[46px] w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus-within:ring-2 focus-within:ring-green-500 flex flex-wrap gap-1.5 items-center cursor-text"
+        onClick={() => setOpen(true)}
+      >
+        {values.map((city) => (
+          <span key={city} className="flex items-center gap-1 bg-green-100 text-green-800 text-xs font-semibold rounded-md px-2 py-1 shrink-0">
+            <span className="font-mono">{cityToIata[city] ?? city}</span>
+            <button type="button" className="text-green-600 hover:text-green-900 leading-none" onMouseDown={(e) => { e.stopPropagation(); remove(city); }}>×</button>
+          </span>
+        ))}
+        <input
+          id={id} type="text" value={query} autoComplete="off"
+          placeholder={values.length === 0 ? 'City or airport code…' : 'Add more…'}
+          className="flex-1 min-w-[100px] text-sm outline-none bg-transparent py-0.5"
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+      </div>
       {open && (showSuggested || filtered.length > 0) && (
         <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-72 overflow-auto">
           {showSuggested && (
             <>
-              <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50">
-                Suggested
-              </li>
+              <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50">Suggested</li>
               {suggested.map((opt) => (
-                <li
-                  key={opt.city}
-                  className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50 hover:text-green-800 flex items-center justify-between gap-2"
-                  onMouseDown={() => select(opt.city)}
-                >
+                <li key={opt.city} className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50 hover:text-green-800 flex items-center justify-between gap-2" onMouseDown={() => select(opt.city)}>
                   <div className="flex items-center gap-2 min-w-0">
-                    {opt.iata && (
-                      <span className="text-xs font-mono font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded shrink-0">
-                        {opt.iata}
-                      </span>
-                    )}
+                    {opt.iata && <span className="text-xs font-mono font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded shrink-0">{opt.iata}</span>}
                     <span className="truncate text-gray-800">{opt.city}</span>
                   </div>
                   <span className="text-xs text-gray-400 shrink-0">{opt.distMi.toLocaleString()} mi</span>
                 </li>
               ))}
-              {filtered.length > 0 && (
-                <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-t border-gray-100">
-                  All airports
-                </li>
-              )}
+              {filtered.length > 0 && <li className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-t border-gray-100">All airports</li>}
             </>
           )}
           {filtered.map((opt) => (
-            <li
-              key={opt.city}
-              className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50 hover:text-green-800 flex items-center justify-between gap-2"
-              onMouseDown={() => select(opt.city)}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                {opt.iata && (
-                  <span className="text-xs font-mono font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded shrink-0">
-                    {opt.iata}
-                  </span>
-                )}
-                <span className="truncate text-gray-800">{opt.city}</span>
-              </div>
-              {sortByDistance && opt.distMi !== null && (
-                <span className="text-xs text-gray-400 shrink-0">{opt.distMi.toLocaleString()} mi</span>
-              )}
+            <li key={opt.city} className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50 hover:text-green-800 flex items-center gap-2" onMouseDown={() => select(opt.city)}>
+              {opt.iata && <span className="text-xs font-mono font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded shrink-0">{opt.iata}</span>}
+              <span className="truncate text-gray-800">{opt.city}</span>
             </li>
           ))}
         </ul>
@@ -340,8 +299,8 @@ function PathCard({
 }
 
 export default function Page() {
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [froms, setFroms] = useState<string[]>([]);
+  const [tos, setTos] = useState<string[]>([]);
   const [maxLayovers, setMaxLayovers] = useState(3);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [results, setResults] = useState<Path[] | null>(null);
@@ -367,15 +326,23 @@ export default function Page() {
 
   function handleSearch() {
     setError('');
-    if (!from) { setError('Please select a departure city.'); return; }
-    if (!to) { setError('Please select a destination city.'); return; }
-    if (from === to) { setError('Departure and destination must be different.'); return; }
-    if (!allCitiesAlpha.includes(from)) { setError(`"${from}" is not a valid Frontier city.`); return; }
-    if (!allCitiesAlpha.includes(to)) { setError(`"${to}" is not a valid Frontier city.`); return; }
+    if (froms.length === 0) { setError('Please select at least one departure city.'); return; }
+    if (tos.length === 0) { setError('Please select at least one destination city.'); return; }
     setLoading(true);
     setTimeout(() => {
-      const paths = findPaths(adj, from, to, maxLayovers);
-      setResults(paths);
+      const seen = new Set<string>();
+      const allPaths: Path[] = [];
+      for (const from of froms) {
+        for (const to of tos) {
+          if (from === to) continue;
+          for (const p of findPaths(adj, from, to, maxLayovers)) {
+            const key = p.stops.join('→');
+            if (!seen.has(key)) { seen.add(key); allPaths.push(p); }
+          }
+        }
+      }
+      allPaths.sort((a, b) => a.layovers - b.layovers || a.stops.length - b.stops.length);
+      setResults(allPaths);
       setLoading(false);
       setHasSearched(true);
       setMenuOpen(false);
@@ -387,8 +354,8 @@ export default function Page() {
   const searchFormContent = (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-        <CityInput id="from" label="From" value={from} onChange={setFrom} userCoords={userCoords} sortByDistance={true} />
-        <CityInput id="to" label="To" value={to} onChange={setTo} userCoords={userCoords} sortByDistance={false} suggestFrom={from} />
+        <CityInputMulti id="from" label="From" values={froms} onChange={setFroms} userCoords={userCoords} suggestCoords={userCoords} />
+        <CityInputMulti id="to" label="To" values={tos} onChange={setTos} userCoords={userCoords} />
       </div>
       <div className="mb-5">
         <label htmlFor="travel-date" className="block text-sm font-semibold text-gray-700 mb-1">Travel Date</label>
@@ -473,7 +440,7 @@ export default function Page() {
         <span className="text-2xl font-black tracking-tight">F</span>
         <div className="min-w-0 hidden sm:block">
           <h1 className="text-sm font-bold leading-tight">Frontier Flight Search</h1>
-          <p className="text-green-200 text-xs truncate">{from} → {to}</p>
+          <p className="text-green-200 text-xs truncate">{froms.map(c => cityToIata[c] ?? c).join(', ')} → {tos.map(c => cityToIata[c] ?? c).join(', ')}</p>
         </div>
         <div className="ml-auto flex items-center gap-3">
           {results && results.length > 0 && (
